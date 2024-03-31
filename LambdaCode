@@ -1,0 +1,96 @@
+import json
+
+def validate(slots):
+    valid_cities = ['guntur', 'delhi', 'vijaywada', 'hyderabad']
+    
+    if not slots.get('Location'):
+        return {
+            'isValid': False,
+            'violatedSlot': 'Location',
+            'message': 'In Which City Do You Want Me To Book Tickets.'
+        }
+    
+    location = slots['Location']['value']['originalValue'].lower()
+    if location not in valid_cities:
+        return {
+            'isValid': False,
+            'violatedSlot': 'Location',
+            'message': f"We currently support only {', '.join(valid_cities)} as valid destinations."
+        }
+    
+    if not slots.get('ShowTime'):
+        return {
+            'isValid': False,
+            'violatedSlot': 'ShowTime',
+            'message': 'Please provide the show time.'
+        }
+    
+    if not slots.get('Number'):
+        return {
+            'isValid': False,
+            'violatedSlot': 'Number',
+            'message': 'Number Of Tickets Do You Want Me To Book.'
+        }
+    
+    if not slots.get('TheaterType'):
+        return {
+            'isValid': False,
+            'violatedSlot': 'TheaterType',
+            'message': 'Please specify the theater type.'
+        }
+
+    return {'isValid': True}
+
+def lambda_handler(event, context):
+    intent_request = event['sessionState']['intent']
+    slots = intent_request['slots']
+    invocation_source = event['invocationSource']
+    
+    if invocation_source == 'DialogCodeHook':
+        validation_result = validate(slots)
+        if not validation_result['isValid']:
+            return {
+                "sessionState": {
+                    "dialogAction": {
+                        "type": "ElicitSlot",
+                        "slotToElicit": validation_result['violatedSlot']
+                    },
+                    "intent": intent_request,
+                    "state": {
+                        "slotToElicit": validation_result['violatedSlot']
+                    }
+                },
+                "messages": [
+                    {
+                        "contentType": "PlainText",
+                        "content": validation_result['message']
+                    }
+                ]
+            }
+        else:
+            return {
+                "sessionState": {
+                    "dialogAction": {
+                        "type": "Delegate"
+                    },
+                    "intent": intent_request
+                }
+            }
+    elif invocation_source == 'FulfillmentCodeHook':
+        return {
+            "sessionState": {
+                "dialogAction": {
+                    "type": "Close"
+                },
+                "intent": intent_request,
+                "state": {
+                    "state": "Fulfilled"
+                }
+            },
+            "messages": [
+                {
+                    "contentType": "PlainText",
+                    "content": "Thank you.Your booking is confirmed."
+                }
+            ]
+        }
